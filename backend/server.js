@@ -60,7 +60,19 @@ app.post("/api/crawl", async (req, res) => {
     console.error("❌ Crawl error:", err.message);
   }
 });
-
+// seed sample data
+app.get("/api/seed", (req, res) => {
+  try {
+    const count = db.prepare("SELECT COUNT(*) as count FROM complaints").get();
+    if (count.count > 0) {
+      return res.json({ message: `Already has ${count.count} complaints!` });
+    }
+    require("./seed");
+    res.json({ message: "Seeded 30 complaints successfully!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 app.listen(5000, () => {
   console.log("🚀 Backend running on http://localhost:5000");
 });
