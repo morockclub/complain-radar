@@ -7,13 +7,9 @@ app.use(express.json());
 
 // ============================================
 // IN-MEMORY DATABASE
-// works perfectly on Render free tier
-// no files needed, no wiping problem
 // ============================================
-
 const complaints = [];
 
-// seed data loaded into memory on startup
 const seedData = [
   { id:"zom00001", company:"zomato",  platform:"Twitter/X",     username:"@rahul_mumbai",   text:"Zomato delivered my food 2 hours late and completely cold. Unacceptable! #ZomatoFail",   category:"Delivery",         sentiment:"angry",        city:"Mumbai",    likes:245, shares:67,  replies:34  },
   { id:"zom00002", company:"zomato",  platform:"Reddit",         username:"@priya_delhi",    text:"Ordered biryani from Zomato received veg pulao. Support put me on hold for 45 minutes.", category:"Food Quality",     sentiment:"frustrated",   city:"Delhi",     likes:189, shares:43,  replies:28  },
@@ -63,27 +59,38 @@ console.log(`✅ Loaded ${complaints.length} complaints into memory`);
 // CRAWL TARGETS
 // ============================================
 const CRAWL_TARGETS = [
-  { company:"zomato", name:"Zomato MouthShut",  url:"https://www.mouthshut.com/product-reviews/Zomato-reviews-925594485", enabled:true },
-  { company:"swiggy", name:"Swiggy MouthShut",  url:"https://www.mouthshut.com/product-reviews/Swiggy-reviews-925608254", enabled:true },
+  { company:"zomato", name:"Zomato MouthShut",  url:"https://www.mouthshut.com/product-reviews/Zomato-reviews-925594485",  enabled:true },
+  { company:"swiggy", name:"Swiggy MouthShut",  url:"https://www.mouthshut.com/product-reviews/Swiggy-reviews-925608254",  enabled:true },
   { company:"ola",    name:"Ola MouthShut",      url:"https://www.mouthshut.com/product-reviews/OlaCabs-reviews-925574977", enabled:true },
-  { company:"zomato", name:"Zomato Trustpilot",  url:"https://www.trustpilot.com/review/www.zomato.com", enabled:true },
-  { company:"swiggy", name:"Swiggy Trustpilot",  url:"https://www.trustpilot.com/review/www.swiggy.com", enabled:true },
-  { company:"ola",    name:"Ola Trustpilot",     url:"https://www.trustpilot.com/review/www.olacabs.com", enabled:true },
+  { company:"zomato", name:"Zomato Trustpilot",  url:"https://www.trustpilot.com/review/www.zomato.com",                   enabled:true },
+  { company:"swiggy", name:"Swiggy Trustpilot",  url:"https://www.trustpilot.com/review/www.swiggy.com",                   enabled:true },
+  { company:"ola",    name:"Ola Trustpilot",     url:"https://www.trustpilot.com/review/www.olacabs.com",                  enabled:true },
 ];
 
 // ============================================
-// NEW COMPLAINTS ADDED BY CRAWLER
+// CRAWLER COMPLAINT POOL
+// each crawl picks random complaints from this
 // ============================================
-const crawlerComplaints = [
-  { company:"zomato",  platform:"Twitter/X",     username:"@new_user_zom1", text:"Just ordered from Zomato and the delivery was 90 minutes late. The restaurant said food was ready in 20 mins. Where was the delivery partner?", category:"Delivery",         sentiment:"angry",        city:"Mumbai"    },
-  { company:"zomato",  platform:"Reddit",         username:"@new_user_zom2", text:"Zomato Pro subscription renewed automatically without any reminder. Charged 299 rupees without consent. This is daylight robbery!", category:"Payment",          sentiment:"urgent",       city:"Delhi"     },
-  { company:"zomato",  platform:"Google Reviews", username:"@new_user_zom3", text:"The restaurant on Zomato showed 4.5 stars but food quality was terrible. Fake reviews are ruining the platform completely.", category:"Food Quality",     sentiment:"disappointed", city:"Bengaluru" },
-  { company:"swiggy",  platform:"Twitter/X",      username:"@new_user_swi1", text:"Swiggy driver called me 5 times asking for directions but the address was perfectly clear on the app. Wasted 30 minutes!", category:"Driver",           sentiment:"frustrated",   city:"Chennai"   },
-  { company:"swiggy",  platform:"Reddit",         username:"@new_user_swi2", text:"Swiggy cancelled my order after 1 hour without any reason. Now they are saying refund will take 7 days. Unacceptable!", category:"Refund",           sentiment:"angry",        city:"Pune"      },
-  { company:"swiggy",  platform:"Quora",          username:"@new_user_swi3", text:"Swiggy Genie service is a complete joke. Promised 30 minute pickup and delivery but took 3 hours. No compensation offered.", category:"Customer Support", sentiment:"disappointed", city:"Hyderabad" },
-  { company:"ola",     platform:"Twitter/X",      username:"@new_user_ola1", text:"Ola auto driver refused to take me saying the distance was too short. This happens every single day in Bangalore. Fix this!", category:"Driver",           sentiment:"frustrated",   city:"Bengaluru" },
-  { company:"ola",     platform:"Facebook",       username:"@new_user_ola2", text:"Ola Play screen in my cab was playing extremely loud music. Driver refused to turn it off. Very uncomfortable journey.", category:"Customer Support", sentiment:"disappointed", city:"Mumbai"    },
-  { company:"ola",     platform:"Reddit",         username:"@new_user_ola3", text:"Booked Ola outstation cab. Driver arrived 2 hours late and then demanded extra money saying fuel prices increased. Pathetic!", category:"Payment",          sentiment:"angry",        city:"Delhi"     },
+const complaintPool = [
+  { company:"zomato",  platform:"Twitter/X",     text:"Just ordered from Zomato and delivery was 90 minutes late. Restaurant said food was ready in 20 mins. Ridiculous!",              category:"Delivery",         sentiment:"angry",        city:"Mumbai"    },
+  { company:"zomato",  platform:"Reddit",         text:"Zomato Pro subscription renewed automatically without reminder. Charged 299 rupees without consent. Daylight robbery!",         category:"Payment",          sentiment:"urgent",       city:"Delhi"     },
+  { company:"zomato",  platform:"Google Reviews", text:"Restaurant showed 4.5 stars on Zomato but food was terrible. Fake reviews are completely ruining this platform!",              category:"Food Quality",     sentiment:"disappointed", city:"Bengaluru" },
+  { company:"zomato",  platform:"Facebook",       text:"Zomato delivery partner dropped my food outside building and marked it delivered. Had to eat cold food sitting on floor.",      category:"Delivery",         sentiment:"frustrated",   city:"Pune"      },
+  { company:"zomato",  platform:"Quora",          text:"Zomato customer care kept me on hold for 1 hour then disconnected. Filed 3 complaints, zero resolution. Worst service!",       category:"Customer Support", sentiment:"angry",        city:"Chennai"   },
+  { company:"zomato",  platform:"Twitter/X",      text:"Zomato showing wrong menu prices. Charged 150 rupees more than what was displayed. This is fraud and must be investigated!",  category:"Payment",          sentiment:"urgent",       city:"Kolkata"   },
+  { company:"zomato",  platform:"Reddit",         text:"My Zomato order was 3 hours late on my birthday dinner. Driver was unreachable. Complete disaster. Never ordering again!",     category:"Delivery",         sentiment:"angry",        city:"Hyderabad" },
+  { company:"swiggy",  platform:"Twitter/X",      text:"Swiggy driver called me 5 times asking directions. Address was perfectly clear on app. Wasted 30 minutes of my time!",        category:"Driver",           sentiment:"frustrated",   city:"Chennai"   },
+  { company:"swiggy",  platform:"Reddit",         text:"Swiggy cancelled my order after 1 hour without any reason. Now saying refund takes 7 days. This is completely unacceptable!", category:"Refund",           sentiment:"angry",        city:"Pune"      },
+  { company:"swiggy",  platform:"Quora",          text:"Swiggy Genie service is a complete joke. Promised 30 minute pickup but took 3 hours. Zero compensation offered to me.",       category:"Customer Support", sentiment:"disappointed", city:"Hyderabad" },
+  { company:"swiggy",  platform:"Facebook",       text:"Swiggy delivered completely wrong order. When I complained they offered 50 rupee coupon for 800 rupee order. Insulting!",     category:"Food Quality",     sentiment:"angry",        city:"Jaipur"    },
+  { company:"swiggy",  platform:"Google Reviews", text:"Swiggy charged me for Swiggy One but benefits not applied on any order. Three weeks of calls and no resolution at all.",       category:"Payment",          sentiment:"frustrated",   city:"Bhopal"    },
+  { company:"swiggy",  platform:"Twitter/X",      text:"Swiggy app showing estimated time as 30 mins but actual delivery took 2 hours. No notification or update during the wait.",   category:"App/Tech",         sentiment:"disappointed", city:"Ahmedabad" },
+  { company:"ola",     platform:"Twitter/X",      text:"Ola auto driver refused short distance ride. This happens every single day in Bangalore. Why is nobody taking action here?",  category:"Driver",           sentiment:"frustrated",   city:"Bengaluru" },
+  { company:"ola",     platform:"Facebook",       text:"Ola Play screen playing extremely loud music. Driver refused to lower volume. Very uncomfortable 45 minute journey today.",    category:"Customer Support", sentiment:"disappointed", city:"Mumbai"    },
+  { company:"ola",     platform:"Reddit",         text:"Booked Ola outstation cab. Driver arrived 2 hours late then demanded extra money citing fuel prices. Complete cheating!",      category:"Payment",          sentiment:"angry",        city:"Delhi"     },
+  { company:"ola",     platform:"Google Reviews", text:"Ola Electric scooter battery died mid trip. Stranded for 2 hours. No emergency support available. Paid premium for nothing!", category:"App/Tech",         sentiment:"urgent",       city:"Pune"      },
+  { company:"ola",     platform:"Quora",          text:"Ola driver took completely wrong route to inflate fare. When I pointed it out he became aggressive. Very unsafe experience!",  category:"Driver",           sentiment:"angry",        city:"Chennai"   },
+  { company:"ola",     platform:"Twitter/X",      text:"Ola cancelled my scheduled airport ride 10 minutes before pickup. Had to pay 3x surge for another cab. Missed my flight!",   category:"Driver",           sentiment:"urgent",       city:"Hyderabad" },
 ];
 
 // ============================================
@@ -94,11 +101,9 @@ const crawlerComplaints = [
 app.get("/api/complaints", (req, res) => {
   const { company, category, sentiment } = req.query;
   let result = [...complaints];
-
   if (company)   result = result.filter(c => c.company   === company);
   if (category)  result = result.filter(c => c.category  === category);
   if (sentiment) result = result.filter(c => c.sentiment === sentiment);
-
   result.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   res.json(result.slice(0, 300));
 });
@@ -106,17 +111,14 @@ app.get("/api/complaints", (req, res) => {
 // get daily stats
 app.get("/api/daily-stats", (req, res) => {
   const byDate = {};
-
   complaints.forEach(c => {
     const date = c.timestamp.split("T")[0];
     if (!byDate[date]) byDate[date] = { date };
     byDate[date][c.company] = (byDate[date][c.company] || 0) + 1;
   });
-
   const result = Object.values(byDate)
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 42);
-
   res.json(result);
 });
 
@@ -136,32 +138,44 @@ app.get("/api/stats", (req, res) => {
 
 // seed route
 app.get("/api/seed", (req, res) => {
-  res.json({ message: `Memory has ${complaints.length} complaints already loaded!` });
+  res.json({
+    message: `Memory has ${complaints.length} complaints loaded!`
+  });
 });
 
-// crawl route — adds new complaints to memory
+// ============================================
+// CRAWL ROUTE
+// picks random complaints from pool
+// adds them with fresh timestamps
+// ============================================
 app.post("/api/crawl", (req, res) => {
-  res.json({ message: "Crawl started! Adding new complaints..." });
+  console.log("🕷️ Crawl started...");
 
-  // add crawler complaints with fresh timestamps
-  crawlerComplaints.forEach(c => {
-    // check if already added
-    const exists = complaints.find(
-      existing => existing.username === c.username
-    );
-    if (!exists) {
-      complaints.push({
-        ...c,
-        id: Math.random().toString(36).slice(2, 10),
-        timestamp: new Date().toISOString(),
-        likes:   Math.floor(Math.random() * 300),
-        shares:  Math.floor(Math.random() * 80),
-        replies: Math.floor(Math.random() * 50),
-      });
-    }
+  // pick 6 random complaints from pool
+  const shuffled = complaintPool
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 6);
+
+  // add them with unique ids and fresh timestamps
+  shuffled.forEach(c => {
+    complaints.push({
+      ...c,
+      id: Math.random().toString(36).slice(2, 10),
+      username: `@user_${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: new Date().toISOString(),
+      likes:   Math.floor(Math.random() * 300),
+      shares:  Math.floor(Math.random() * 80),
+      replies: Math.floor(Math.random() * 50),
+    });
   });
 
-  console.log(`✅ Crawl complete! Total complaints: ${complaints.length}`);
+  console.log(`✅ Added 6 complaints. Total: ${complaints.length}`);
+
+  res.json({
+    message: "Crawl complete!",
+    added: shuffled.length,
+    total: complaints.length,
+  });
 });
 
 // add complaint manually
