@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import "./App.css";
 
-const API = "http://localhost:5000";
+const API = "https://complain-radar.onrender.com";
 
 const COMPANIES = {
   zomato: { name: "Zomato", color: "#E23744", bg: "#fff1f2", icon: "🍕" },
