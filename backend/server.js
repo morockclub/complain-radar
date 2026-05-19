@@ -7,6 +7,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+function autoSeed() {
+  try {
+    const count = db.prepare(
+      "SELECT COUNT(*) as count FROM complaints"
+    ).get();
+    if (count.count === 0) {
+      console.log("📦 Database empty! Auto seeding...");
+      require("./seed");
+      console.log("✅ Auto seed complete!");
+    } else {
+      console.log(`✅ Database has ${count.count} complaints`);
+    }
+  } catch (err) {
+    console.error("❌ Auto seed failed:", err.message);
+  }
+}
+autoSeed();
+
 // Get all complaints
 app.get("/api/complaints", (req, res) => {
   const { company, category, sentiment } = req.query;
